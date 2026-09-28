@@ -2,30 +2,17 @@
 % Please edit documentation in R/calculateGATflag.R
 \name{calculateGATflag}
 \alias{calculateGATflag}
-\title{Calculate GAT Flag}
+\title{calculateGATflag}
 \usage{
 calculateGATflag(exclist, d)
 }
 \arguments{
-\item{exclist}{The vector of settings to use, including variable names
-{"var1", "var2", "var3"}, the criteria {"math1", "math2",
-"math3"}, and the numeric values {"val1", "val2", "val3"}.}
+\item{exclist}{The settings to define areas to be excluded.}
 
 \item{d}{The dataset containing the flag and exclusion variables.}
 }
 \description{
-This function cleans up the code to update the flag variable based on
-exclusion criteria.
-}
-\examples{
-exclist <- list(
-  var1 = "TOTAL_POP",
-  math1 = "less than",
-  val1 = 500,
-  var2 = "NONE", # if not "NONE", define math2 & val2
-  var3 = "NONE"  # if not "NONE", define math3 & val3
-)
-
-calculateGATflag(exclist = exclist, d = hftown)
-
+This function calculates which rows should be excluded by
+assigning a GATflag value of 1. The rows are chosen based
+on the exclusion criteria contained in exclist.
 }

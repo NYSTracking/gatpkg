@@ -1,42 +1,39 @@
-#' Calculate GAT Flag
-#'
-#' @description
-#' This function cleans up the code to update the flag variable based on
-#' exclusion criteria.
+#'calculateGATflag
 #'
 #'
-#' @param d       The dataset containing the flag and exclusion variables.
-#' @param exclist The vector of settings to use, including variable names
-#'                {"var1", "var2", "var3"}, the criteria {"math1", "math2",
-#'                "math3"}, and the numeric values {"val1", "val2", "val3"}.
+#'@description This function calculates which rows should be excluded by
+#'             assigning a GATflag value of 1. The rows are chosen based
+#'             on the exclusion criteria contained in exclist.
 #'
-#' @examples
-#' exclist <- list(
-#'   var1 = "TOTAL_POP",
-#'   math1 = "less than",
-#'   val1 = 500,
-#'   var2 = "NONE", # if not "NONE", define math2 & val2
-#'   var3 = "NONE"  # if not "NONE", define math3 & val3
-#' )
+#'@param exclist The settings to define areas to be excluded.
+#'@param d The dataset containing the flag and exclusion variables.
 #'
-#' calculateGATflag(exclist = exclist, d = hftown)
 #'
-#' @export
+#'
+#'
+#'@export
+
+
 
 calculateGATflag <- function(exclist, d) {
   if (!"GATflag" %in% names(d)) {
     d$GATflag <- 0 # for non-default uses of this function
   }
-
-  if (exclist$var1 != "NONE") {
-    d <- calculateGATexclusions(d, exclist$var1, exclist$math1, exclist$val1)
-  }
-  if (exclist$var2 != "NONE") {
-    d <- calculateGATexclusions(d, exclist$var2, exclist$math2, exclist$val2)
-  }
-  if (exclist$var3 != "NONE") {
-    d <- calculateGATexclusions(d, exclist$var3, exclist$math3, exclist$val3)
+  d$GATflag <- ifelse(d$GATflag == 1, 0, d$GATflag)
+  
+  for(i in seq(1, 9, by = 3)){
+    if (exclist[[i]] != "NONE") {
+      
+      
+      if (exclist[[i + 1]] == "equals") {
+        d$GATflag <- ifelse(d$GATflag == 0 & data.frame(d)[, exclist[[i]]] == exclist[i + 2], 1, d$GATflag)
+      } else if (exclist[[i + 1]] == "less than") {
+        d$GATflag <- ifelse(d$GATflag == 0 & data.frame(d)[, exclist[[i]]] < exclist[i + 2], 1, d$GATflag)
+      } else if (exclist[[i + 1]] == "greater than") {
+        d$GATflag <- ifelse(d$GATflag == 0 & data.frame(d)[, exclist[[i]]] > exclist[i + 2], 1, d$GATflag)
+      }
+      
+    }
   }
   return(d$GATflag)
-}
-
+} 

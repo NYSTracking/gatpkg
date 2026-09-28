@@ -1,10 +1,37 @@
+# gatpkg v2.2.0
+
+* Fixed error in sf call in `defineGATmerge()` preventing installation of gatpkg in R.
+* Moved progress bar titles and labels into a dataframe named PBnames in sysdata.Rdata.
+* Added the following functions (and corresponding code in runGATprogram) to decrease repetitive code:
+    * `drawGATpb()`: generalized version of previous progress bar calls to set pb and tpb based on 
+    `step` variable.
+    *`cleanGATexclist()`: Function to set `temp$minmaxlbl` variable and remove non numeric values from
+    exclist math values.
+    *`plotGATaggs()`: Function to plot GAT aggregators and store them to `myplots` variable, dependent
+    on whether aggregator function is `aggregator1` or `aggregator2` variable.
+    *`creatGATmapvar()`: Function that creates mapvar variables used in `plotGATaggs()`.
+   *`plotGATrates()`: Function to map GAT rates and set text on map dependent on exclist variables.
+* Fixed error in `calculateGATflag()` causing GAT exclusion criteria to be ignored.
+* Merged `calculateGATflag()` and `calculateGATexclusions()` into one function.
+* Minor syntax corrections.
+
+
+# gatpkg v2.1.0
+
+* Removed dependency on spdep and fixed associated bugs.
+* Added check for empty geographies.
+
+# gatpkg v2.0.1
+
+* Added check for operating system in `locateGATshapefile()`.
+* Removed function `aggregateGATnb()`.
+
 # gatpkg v2.0.0
 
-* Revised `writeGATkml` so that it also writes to KMZ.
+* Revised `writeGATkml()` so that it also writes to KMZ.
 * Removed dependencies on rgeos, lwgeom, rgdal, foreign, tcltk2, plotkml, and sp.
-* Removed `checkGATshapefilesize` and fixed bugs. 
+* Removed `checkGATshapefilesize()` and fixed bugs. 
 * Added advanced options to the settings file and log.
-* Fixed several bugs that broke GAT.
 * Revised and standardized all pop-up fonts and colors except the pre-defined progress bar and file-selection window.
 * Revised population weighting to read in the population file only once.
 * Added a 'GATid' variable to clone the selected merge variable instead of overwriting it.
