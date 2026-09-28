@@ -30,6 +30,9 @@
 #'                   and will result in maps remaining open after GAT is
 #'                   finished running. Maps are saved to PDF irrespective of
 #'                   this setting.
+#' @param quitopt    Text string for the cancel button.
+#' @param bgcol      Text string containing UI background color.
+#' @param buttoncol  Text string containing UI button color.
 #'
 #' @details
 #' For more information  on how the different merge options work, see
@@ -48,9 +51,12 @@
 
 # limitdenom = FALSE; pwrepeat = FALSE; settings = NULL
 # adjacent = TRUE; minfirst = TRUE; closemap = TRUE
+# bgcol = "lightskyblue3"; buttoncol = "cornflowerblue"; quitopt = "Cancel GAT"
 
 runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
-                          adjacent = TRUE, minfirst = FALSE, closemap = FALSE) {
+                          adjacent = TRUE, minfirst = FALSE, closemap = FALSE,
+                          bgcol = "lightskyblue3", buttoncol = "cornflowerblue",
+                          quitopt = "Cancel GAT") {
   #  1. start the GAT program ----
   gatenv <- new.env()
 
@@ -63,12 +69,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
   # load the progress bar
   # note https://stackoverflow.com/questions/8436045/double-r-tcltk-progress-bar
   step <- 0
-  gatenv$pb <- list(title = paste("NYSDOH Geographic Aggregation Tool (GAT)",
-                           mysettings$version, mysettings$date),
-             label = "GAT is running. Please wait for dialogs.")
-  gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, min = 0, max = 26,
-                label = gatenv$pb$label, initial = 0, width = 400)
-  tcltk::setTkProgressBar(gatenv$tpb, value = step)
+  drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = NULL,
+            aggvars = NULL, ratevars = NULL)
 
   # pre-load lists ----
   step <- 1 # start at step 1
@@ -122,8 +124,19 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       temp$pop <- sf::st_read(dsn = filevars$poppath,
                               layer = filevars$popfile)
     }
+    temp$nrow <- nrow(temp$shp)
+    temp$shp <- temp$shp[!sf::st_is_empty(temp$shp),]
+    temp$invalid <- nrow(temp$shp) - temp$nrow
+
+    if (temp$invalid > 0) {
+      temp$msg <- paste("Please note", temp$invalid,
+                        "areas were removed because they were empty.")
+      tcltk::tkmessageBox(title = "Areas invalid", type = "ok",
+                          icon = "warning", message = temp$msg)
+    }
+
   } else {
-    gatvars <- list()
+    gatvars <- list(invalid = temp$invalid)
     filevars <- list(userin = "")
     mergevars <- NULL
     ratevars <- NULL
@@ -141,20 +154,13 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
 
   while (step < 20){ # user input settings
     while (step ==  1) { # ask user to identify shapefile; check its usability
-      gatenv$pb <- list(title = "NYSDOH GAT: identify shapefile",
-                 label = "Identifying and selecting the shapefile.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                      label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
       # identify shapefile
       filevars <- locateGATshapefile(myfile = filevars$userin, step = step,
-                                     msg = "Select the shapefile to aggregate")
+                                     msg = "Select the shapefile to aggregate",
+                                     bgcol = bgcol, buttoncol = buttoncol)
 
       if (filevars$userin == "cancel") {
         step <- 20
@@ -222,6 +228,16 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
           }
 
           temp$shp$GATflag <- 0
+          temp$nrow <- nrow(temp$shp)
+          temp$shp <- temp$shp[!sf::st_is_empty(temp$shp),]
+          gatvars$invalid <- temp$nrow - nrow(temp$shp)
+
+          if (gatvars$invalid > 0) {
+            temp$msg <- paste("Please note", gatvars$invalid,
+                              "areas were removed because they were invalid.")
+            tcltk::tkmessageBox(title = "Areas invalid", type = "ok",
+                                icon = "warning", message = temp$msg)
+          }
 
           step <- step + 1
         }
@@ -238,20 +254,14 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
     } # shapefile
     while (step ==  2) { # ask user to select ID variable that uniquely
                         # identifies areas to be merged
-      gatenv$pb <- list(title = "NYSDOH GAT: identify identifier",
-                 label = "Selecting the unique identifier.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
       # identify GAT polygon identifier variable
       gatvars$myidvar <- identifyGATid(shp = temp$shp, step = step,
-                                       backopt = !temp$flagconfirm)
+                                       backopt = !temp$flagconfirm,
+                                       bgcol = bgcol, quitopt = quitopt,
+                                       buttoncol = buttoncol)
 
       if (gatvars$myidvar == "back"){
         step <- step - 1
@@ -273,16 +283,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       }
     } # id variable
     while (step ==  3) { #ask user to select boundary variable, if present
-      gatenv$pb <- list(title = "NYSDOH GAT: identify boundary",
-                 label = "Selecting the boundary variable.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
       if (is.null(gatvars$boundary)) {
         gatvars$boundary <- "NONE"
@@ -295,7 +297,9 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
         tempbound <- identifyGATboundary(shp = temp$shp, step = step,
                                          boundary = gatvars$boundary,
                                          borders = gatvars$rigidbound,
-                                         backopt = !temp$flagconfirm)
+                                         backopt = !temp$flagconfirm,
+                                         bgcol = bgcol, quitopt = quitopt,
+                                         buttoncol = buttoncol)
       }
 
       gatvars$rigidbound <- tempbound$check
@@ -321,17 +325,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       rm(tempbound)
     } # boundary variable
     while (step ==  4) { # ask for aggregation variables
-      gatenv$pb <- list(title = "NYSDOH GAT: identify aggregators",
-                 label = "Selecting the aggregation variables.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0,
-                                           max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
       if (is.null(gatvars$aggregator1)) {
         agglist <- NULL
@@ -349,7 +344,9 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       while (temp$error) {
         agglist <- identifyGATaggregators(shp = temp$shp, step = step,
                                           agglist = agglist,
-                                          backopt = !temp$flagconfirm)
+                                          backopt = !temp$flagconfirm,
+                                          bgcol = bgcol, quitopt = quitopt,
+                                          buttoncol = buttoncol)
         temp$error <- FALSE
         if (is.null(agglist)) {
           x <- confirmGATquit()
@@ -410,24 +407,17 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       gatvars$exclmaxval <- sum(temp$shp$GATflag == 5)
     } # aggregation variables
     while (step ==  5) {
-      gatenv$pb <- list(title = "NYSDOH GAT: Enter exclusions",
-                 label = "Identifying your exclusion criteria.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0,
-                                           max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
-
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
+      
       if (!exists("exclist")) exclist <- NULL
       temp$error <- TRUE
-
+      
       while (temp$error) {
         exclist <- inputGATexclusions(shp = temp$shp, exclist = exclist,
-                                      step = step, backopt = !temp$flagconfirm)
+                                      step = step, backopt = !temp$flagconfirm,
+                                      bgcol = bgcol, quitopt = quitopt,
+                                      buttoncol = buttoncol)
         temp$error <- FALSE
         if (is.null(exclist)) {
           x <- confirmGATquit()
@@ -438,112 +428,27 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
             exclist <- list(var1 = "")
           }
         }
-
+        
         # get rid of all non-numeric characters
         # move this to a function?
         if (!temp$error & !exclist$var1 %in% c("back", "cancel")) {
-          if (exclist$math1 == "less than") {
-            temp$minmaxlbl <- "maximum"
-          } else if (exclist$math1 == "greater than") {
-            temp$minmaxlbl <- "minimum"
-          } else {
-            temp$minmaxlbl <- ""
-          }
-          while (grepl("[^0-9.,-]", exclist$val1)) {
-            gats <- list(title = paste("Threshold for", exclist$var1),
-                         msg = paste("Please enter a valid", temp$minmaxlbl, "number for",
-                                     exclist$var1),
-                         help = paste0("To continue, enter a valid number and click 'Next >',",
-                                       "\nto return to exclusion selection, click '< Back',",
-                                       "\nand to quit the program, click 'Cancel'."))
-            exclist$val1 <- inputGATvalue(title = gats$title, help = gats$help,
-                                          message = gats$msg, defaulttext = "1,000",
-                                          helppage = "inputGATvalue", step = step,
-                                          backopt = !temp$flagconfirm)
-            if (exclist$val1 == "back") {
-              exclist$var1 <- "back"
-              exclist$val1 <- 0
-            } else if (exclist$val1 == "cancel") {
-              exclist$var1 <- "cancel"
-              exclist$val1 <- 0
-              mysettings$quit <- TRUE
-              step <- 20
-            }
-          }
-          while (grepl("[^0-9.,-]", exclist$val2)) {
-            if (exclist$math2 == "less than") {
-              temp$minmaxlbl <- "maximum"
-            } else if (exclist$math2 == "greater than") {
-              temp$minmaxlbl <- "minimum"
-            } else {
-              temp$minmaxlbl <- ""
-            }
-            gats <- list(title = paste("Threshold for", exclist$var2),
-                         msg = paste("Please enter a valid", temp$minmaxlbl, "number for",
-                                     exclist$var2),
-                         help = paste0("To continue, enter a valid number and click 'Next >',",
-                                       "\nto return to exclusion selection, click '< Back',",
-                                       "\nand to quit the program, click 'Cancel'."))
-            exclist$val2 <- inputGATvalue(title = gats$title, help = gats$help,
-                                          message = gats$msg, defaulttext = "1,000",
-                                          helppage = "inputGATvalue", step = step,
-                                          backopt = !temp$flagconfirm)
-            if (exclist$val2 == "back") {
-              exclist$var1 <- "back"
-              exclist$val2 <- 0
-            } else if (exclist$val2 == "cancel") {
-              exclist$var1 <- "cancel"
-              exclist$val2 <- 0
-              mysettings$quit <- TRUE
-              step <- 20
-            }
-          }
-          while (grepl("[^0-9.,-]", exclist$val3)) {
-            if (exclist$math3 == "less than") {
-              temp$minmaxlbl <- "maximum"
-            } else if (exclist$math3 == "greater than") {
-              temp$minmaxlbl <- "minimum"
-            } else {
-              temp$minmaxlbl <- ""
-            }
-            gats <- list(title = paste("Threshold for", exclist$var3),
-                         msg = paste("Please enter a valid", temp$minmaxlbl, "number for",
-                                     exclist$var3),
-                         help = paste0("To continue, enter a valid number and click 'Next >',",
-                                       "\nto return to exclusion selection, click '< Back',",
-                                       "\nand to quit the program, click 'Cancel'."))
-            exclist$val3 <- inputGATvalue(title = gats$title, help = gats$help,
-                                          message = gats$msg, defaulttext = "1,000",
-                                          helppage = "inputGATvalue", step = step,
-                                          backopt = !temp$flagconfirm)
-            if (exclist$val3 == "back") {
-              exclist$var1 <- "back"
-              exclist$val3 <- 0
-            } else if (exclist$val3 == "cancel") {
-              exclist$var1 <- "cancel"
-              exclist$val3 <- 0
-              mysettings$quit <- TRUE
-              step <- 20
-            }
-          }
-
-          exclist$val1 <- as.numeric(gsub(",", "", exclist$val1))
-          exclist$val2 <- as.numeric(gsub(",", "", exclist$val2))
-          exclist$val3 <- as.numeric(gsub(",", "", exclist$val3))
+          
+          exclist <- cleanGATexclist(step = step, exclist = exclist, temp = temp, quitopt = quitopt, bgcol = bgcol, buttoncol = buttoncol)
+          
         } else if (exclist$var1 == "back") {
-            step <- step - 1
+          step <- step - 1
         } else if (exclist$var1 == "cancel") {
-            mysettings$quit <- TRUE
-            step <- 20
+          mysettings$quit <- TRUE
+          step <- 20
         }
       }
-
+      
       if (!exclist$var1 %in% c("back", "cancel", "repeat")) {
         # calculate exclusions now to use them to calculate the
         # denominator for similar merges and rates
         temp$shp$GATflag <- calculateGATflag(exclist, d = temp$shp)
         exclist$flagsum <- sum(temp$shp$GATflag != 0)
-
+        
         if (nrow(temp$shp) - exclist$flagsum < 2) {
           temp$msg <- paste("This selection will exclude", exclist$flagsum,
                             "of", nrow(temp$shp), "areas.", "\n",
@@ -562,19 +467,20 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
               temp$msg <- paste(temp$msg, "\n   ", i$var[j], i$math[j], i$val[j])
             }
           }
-
+          
           temp$msg <- paste(temp$msg, "\nThis will exclude", exclist$flagsum,
                             "of", nrow(temp$shp), "areas.")
           temp$help <- paste0("To continue, select 'Yes',",
                               "\nto reselect exclusion criteria, select 'Repeat',",
                               "\nand to return to second aggregation variable selection,",
                               "click '< Back',")
-
+          
           temp$cancel <- inputGATmessage(title = "Excluded areas", help = temp$help,
                                          helptitle = "inputGATmessage",
                                          helppage = "inputGATmessage", step = 6,
-                                         msg = temp$msg, buttonopt = "Repeat",
-                                         backopt = FALSE)
+                                         msg = temp$msg, quitopt = "Repeat",
+                                         backopt = FALSE, bgcol = bgcol,
+                                         buttoncol = buttoncol)
           if (temp$cancel == "cancel") {
             exclist$var1 <- "repeat"
           } else if (temp$cancel == "back") {
@@ -582,9 +488,9 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
             step <- step - 1
           }
         }
-
+        
       }
-
+      
       if (!exclist$var1 %in% c("back", "cancel", "repeat") & !temp$error) {
         if (temp$flagconfirm) {
           step <- 11
@@ -599,19 +505,11 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       } else if (exclist$var1 == "repeat") {
         temp$error <- TRUE
       }
-
+      
     } # exclusions (exclist)
     while (step ==  6) { # radiobutton dialog to get merge type
-      gatenv$pb <- list(title = "NYSDOH GAT: identify merge type",
-                 label = "Selecting the merge type.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
       # create a non-flagged subset of the main dataset to determine denominators
       temp$mapflag <- temp$shp[temp$shp$GATflag == 0, ]
@@ -625,8 +523,9 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
         mergevars <- inputGATmerge(shp = temp$mapflag, mergevars = mergevars,
                                    aggvar = gatvars$aggregator1,
                                    aggvar2 = gatvars$aggregator2, step = step,
-                                   limitdenom = limitdenom,
-                                   backopt = !temp$flagconfirm)
+                                   limitdenom = limitdenom, bgcol = bgcol,
+                                   backopt = !temp$flagconfirm,
+                                   quitopt = quitopt, buttoncol = buttoncol)
         temp$error <- FALSE
         if (is.null(mergevars)) {
           x <- confirmGATquit()
@@ -677,16 +576,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       }
     } # merge type (mergevars)
     while (step ==  7) {
-      gatenv$pb <- list(title = "NYSDOH GAT: identify base population",
-                 label = "Selecting the population file.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
       if (is.null(gatvars$popvar)) gatvars$popvar <- "NONE"
       if (is.null(filevars$popin)) filevars$popin <- filevars$userin
@@ -696,7 +587,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
         while (temp$error) {
           temp$msg <- "Select the population shapefile"
           tempfiles <- locateGATshapefile(msg = temp$msg,
-                                          myfile = filevars$popin, step = step)
+                                          myfile = filevars$popin, step = step,
+                                          bgcol = bgcol, buttoncol = buttoncol)
           temp$error <- FALSE
           if (tempfiles$userin == "cancel") {
             gatvars$popvar <- "back"
@@ -721,9 +613,11 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
               temp$error <- TRUE
             } else if (!is.null(temp$popnumvars)) {
               gatvars$popvar <- identifyGATpopulation(varlist = temp$popnumvars,
-                                                      step = step,
+                                                      step = step, bgcol = bgcol,
                                                       var = gatvars$popvar,
-                                                      backopt = !temp$flagconfirm)
+                                                      backopt = !temp$flagconfirm,
+                                                      quitopt = quitopt,
+                                                      buttoncol = buttoncol)
             }
           }
           if (gatvars$popvar == "back") {
@@ -732,6 +626,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
             if (temp$flagconfirm) {
               step <- 11
             } else {
+              temp$pop <- temp$pop[!sf::st_is_empty(temp$pop),]
+
               step <- step + 1
             }
           }
@@ -746,16 +642,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       }
     } # population weighting
     while (step ==  8) { # step 9: get rate settings
-      gatenv$pb <- list(title = "NYSDOH GAT: identify rate",
-                 label = "Selecting the rate details.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
       if (length(temp$numerics) > 1) {
         temp$error <- TRUE
@@ -765,7 +653,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
         while (temp$error) {
           ratevars <- inputGATrate(shp = temp$mapflag, limitdenom = limitdenom,
                                    step = step, ratevars = ratevars,
-                                   backopt = !temp$flagconfirm)
+                                   backopt = !temp$flagconfirm, bgcol = bgcol,
+                                   quitopt = quitopt, buttoncol = buttoncol)
           temp$error <- FALSE
 
           # returns list(multiplier, ratename, numerator, denominator, colorscheme)
@@ -805,14 +694,16 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
                              help = paste0("Enter a valid number. \n",
                                            "  \u2022  To continue,  click 'Next >'. \n",
                                            "  \u2022  To return to rate settings, click '< Back'.",
-                                           "  \u2022  To quit GAT, click 'Cancel'."))
+                                           "  \u2022  To quit GAT, click '", quitopt, "'."))
                 ratevars$multiplier <- inputGATvalue(title = gats$title,
                                                      help = gats$help,
                                                      message = gats$msg,
                                                      defaulttext = "10,000",
                                                      helppage = "inputGATvalue",
-                                                     step = step,
-                                                     backopt = !temp$flagconfirm)
+                                                     step = step, bgcol = bgcol,
+                                                     backopt = !temp$flagconfirm,
+                                                     quitopt = quitopt,
+                                                     buttoncol = buttoncol)
                 if (ratevars$multiplier == "back") {
                   ratevars$ratename <- "back"
                   ratevars$multiplier <- 1
@@ -870,6 +761,7 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
           step <- step - 1
         } else if (ratevars$ratename == "cancel") {
           step <- 20
+          mysettings$quit <- TRUE
         } else if (temp$flagconfirm) {
           step <- 11
         } else {
@@ -889,18 +781,11 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       }
     } # rate (ratevars)
     while (step ==  9) {
-      gatenv$pb <- list(title = "NYSDOH GAT: save KML?",
-                 label = "Identifying whether to save a KML file.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
-      temp$kml <- saveGATkml(step = step, backopt = !temp$flagconfirm)
+      temp$kml <- saveGATkml(step = step, backopt = !temp$flagconfirm, bgcol = bgcol,
+                             quitopt = quitopt, buttoncol = buttoncol)
 
       if (temp$kml %in% c("Yes", "No")) {
         if (temp$kml == "Yes") {
@@ -915,21 +800,14 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
         }
       } else if (temp$kml == "cancel") {
         step <- 20
+        mysettings$quit <- TRUE
       } else {
         step <- step - 1
       }
     } # save KML
     while (step == 10) { # identify the save files' name and location
-      gatenv$pb <- list(title = "NYSDOH GAT: identify save file",
-                 label = "Identifying the name and location of your save file.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
       saves <- saveGATfiles()
       filevars$userout <- saves$userout
@@ -944,16 +822,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       }
     } # save file
     while (step == 11) { # add dialog to confirm merge settings
-      gatenv$pb <- list(title = "NYSDOH GAT: confirm settings",
-                 label = "Confirming your GAT settings.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
       temp$flagconfirm <- TRUE
       temp$error <- TRUE
@@ -961,7 +831,9 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       while (temp$error) {
         temp$cancel <- confirmGATbystep(gatvars = gatvars, ratevars = ratevars,
                                         exclist = exclist, mergevars = mergevars,
-                                        filevars = filevars, step = step)
+                                        filevars = filevars, step = step,
+                                        bgcol = bgcol, quitopt = quitopt,
+                                        buttoncol = buttoncol)
         temp$error <- FALSE
         if (is.null(temp$cancel)) {
           x <- confirmGATquit()
@@ -993,16 +865,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
   if (!mysettings$quit) { # here onward is automated
     #  3. prep shapefile ----
     step <- 14 # reset after the while loop
-    gatenv$pb <- list(title = "NYSDOH GAT: processing the shapefile",
-               label = paste0("Reading in map from ", filevars$filein, "."))
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
     # housekeeping
     if (gatvars$aggregator2 == "NONE") gatvars$aggregator2 <- gatvars$aggregator1
@@ -1011,6 +875,7 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       gatvars$myidvar <- "temp_id"
     }
 
+    myshps$original <- myshps$original[!sf::st_is_empty(myshps$original),]
     sf::st_agr(myshps$original) <- "constant"
     temp$pts <- sf::st_centroid(myshps$original)
 
@@ -1031,16 +896,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
 
     #  4. run aggregation loop ----
     step <- step + 1
-    gatenv$pb$label = paste0("Aggregating ", filevars$filein, ".")
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0,
-                                         max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
     gatvars$popwt <- mergevars$centroid == "population-weighted"
 
@@ -1054,164 +911,51 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
 
     #  5. aggregate areas ----
     step <- step + 1
-    gatenv$pb$label = paste("Completed", aggvars$newregno, "mergings.")
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
     myshps$aggregated <- mergeGATareas(ratevars = ratevars, aggvars = aggvars,
                                        idvar = "GATid", myshp = myshps$original)
 
     #  6. calculate compactness ratio ####
     step <- step + 1
-    gatenv$pb$label = "Checking compactness ratio."
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
     # to get maximum distance (diameter of circle): max(dist(test1))
     myshps$aggregated$GATcratio <- calculateGATcompactness(myshp = myshps$aggregated)
 
     #  7. map first variable: before and after ####
     step <- step + 1
-    gatenv$pb <- list(title = "NYSDOH GAT: mapping variables",
-               label = paste0("Mapping ", gatvars$aggregator1, ". Please wait."))
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
     # create a list to record plots to be saved to pdf at the end.
     myplots <- list()
 
+    
     # plot first aggregation variable
-    temp <- defineGATmapclasses(areaold = myshps$original,
-                                areanew = myshps$aggregated,
-                                aggvar = gatvars$aggregator1)
-
-    mapvars$title <- paste(gatvars$aggregator1, "Before Merging")
-    mapvars$titlesub = paste("Aggregation values:",
-                             numformat(gatvars$minvalue1), "to",
-                             numformat(as.numeric(gsub(",", "",
-                                                       gatvars$maxvalue1))),
-                             gatvars$aggregator1)
-    if (exclist$var1 != "NONE") {
-      mapvars$titlesub <- paste(mapvars$titlesub, "\nExclusion criteria: ",
-                        exclist$var1, exclist$math1, numformat(exclist$val1))
-    }
-    if (exclist$var2 != "NONE") {
-      mapvars$titlesub <- paste(mapvars$titlesub, ";",
-                                exclist$var2, exclist$math2,
-                        numformat(exclist$val2))
-    }
-    if (exclist$var3 != "NONE") {
-      mapvars$titlesub <- paste(mapvars$titlesub, ";",
-                                exclist$var3, exclist$math3,
-                        numformat(exclist$val3))
-    }
-    mapvars$colcode1before <- temp$colcode1before
-    mapvars$colcode1after <- temp$colcode1after
-
-    myplots$aggregator1before <- plotGATmaps(area = myshps$original,
-                                             var = gatvars$aggregator1,
-                                             title.main = mapvars$title,
-                                             title.sub = mapvars$titlesub,
-                                             colcode = mapvars$colcode1before,
-                                             mapstats = TRUE,
-                                             closemap = closemap)
-
-    # find the new maximums after aggregation
-    mapvars$titlemain <- paste(gatvars$aggregator1, "After Merging")
-    myplots$aggregator1after <- plotGATmaps(area = myshps$aggregated,
-                                            var = gatvars$aggregator1,
-                                            title.main = mapvars$titlemain,
-                                            title.sub = mapvars$titlesub,
-                                            colcode = mapvars$colcode1after,
-                                            after = TRUE, mapstats = TRUE,
-                                            closemap = closemap)
+    myplots <- plotGATaggs(step = step, closemap = closemap, areaold = myshps$original, areanew = myshps$aggregated,
+                           aggvar = gatvars$aggregator1, gatvars = gatvars, exclist = exclist, myplots = myplots,
+                           mapvars = mapvars)
+    
 
     #  8. map second variable: before and after ####
     step <- step + 1
-    if (!gatvars$aggregator2 %in% c("NONE", gatvars$aggregator1)) {
-      gatenv$pb$label = paste("Mapping ", gatvars$aggregator2, ". Please wait.")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
+    
       # plot second aggregation variable, if relevant
-      temp <- defineGATmapclasses(myshps$original, myshps$aggregated,
-                                  gatvars$aggregator2)
-
-      mapvars$title <- paste(gatvars$aggregator2, "Before Merging")
-      mapvars$titlesub = paste("Aggregation values:",
-                               numformat(gatvars$minvalue2), "to",
-                               numformat(as.numeric(gsub(",", "",
-                                                         gatvars$maxvalue2))),
-                               gatvars$aggregator2)
-      if (exclist$var1 != "NONE") {
-        mapvars$titlesub <- paste(mapvars$titlesub, "\nExclusion criteria: ",
-                                  exclist$var1, exclist$math1,
-                                  numformat(exclist$val1))
-      }
-      if (exclist$var2 != "NONE") {
-        mapvars$titlesub <- paste(mapvars$titlesub, ";", exclist$var2, exclist$math2,
-                                  numformat(exclist$val2))
-      }
-      if (exclist$var3 != "NONE") {
-        mapvars$titlesub <- paste(mapvars$titlesub, ";", exclist$var3, exclist$math3,
-                                  numformat(exclist$val3))
-      }
-      mapvars$colcode2before <- temp$colcode2before
-      mapvars$colcode2after <- temp$colcode2after
-
-      myplots$aggregator2before <- plotGATmaps(area = myshps$original,
-                                               var = gatvars$aggregator2,
-                                               title.main = mapvars$title,
-                                               title.sub = mapvars$titlesub,
-                                               colcode = mapvars$colcode2before,
-                                               mapstats = TRUE, closemap = closemap)
-
-      mapvars$titlemain = paste(gatvars$aggregator2, "After Merging")
-
-      myplots$aggregator2after <- plotGATmaps(area = myshps$aggregated,
-                                              var = gatvars$aggregator2,
-                                              title.main = mapvars$titlemain,
-                                              title.sub = mapvars$titlesub,
-                                              colcode = mapvars$colcode2after,
-                                              after = TRUE, mapstats = TRUE,
-                                              closemap = closemap)
-    }
+    myplots <- plotGATaggs(step = step,  closemap = closemap, areaold = myshps$original,
+                             areanew = myshps$aggregated, aggvar = gatvars$aggregator2,
+                           gatvars = gatvars, exclist = exclist, myplots = myplots,  mapvars = mapvars)
+  
 
     #  9. map differences between old and new areas ####
     step <- step + 1
-    gatenv$pb$label = "Mapping differences before and after merging."
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
     # plot new and old on same map
     myplots$compare <-  plotGATcompare(areaold = myshps$original,
@@ -1222,16 +966,9 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
 
     # 10. map compactness ratio ----
     step <- step + 1
-    gatenv$pb$label = "Mapping compactness ratio after merging."
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
-
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
+    
     # create thematic map of compactness ratios
     gats <- list(title.main = "Compactness Ratio After Merging",
                  title.sub = paste("compactness ratio = area of polygon over",
@@ -1247,58 +984,18 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
     # 11. map rates if needed ----
     step <- step + 1
     if (ratevars$ratename != "no_rate") { # map the rate, choropleth map
-      gatenv$pb$label = paste0("Mapping rate variable ", ratevars$ratename, ".")
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
-      gats <- list(title = paste(ratevars$ratename, "per",
-                                 format(as.numeric(ratevars$multiplier),
-                                        big.mark = ",", scientific=FALSE),
-                                 "after merging"),
-                   sub = paste("Rate calculation:", ratevars$ratename, "=",
-                               format(as.numeric(ratevars$multiplier),
-                                      big.mark = ",", scientific=FALSE), "*",
-                               ratevars$numerator, "/", ratevars$denominator))
-      if (exclist$var1 != "NONE") {
-        gats$sub <- paste(gats$sub, "\nExclusion criteria: ",
-                          exclist$var1, exclist$math1,
-                          format(exclist$val1, big.mark=",", scientific=FALSE))
-      }
-      if (exclist$var2 != "NONE") {
-        gats$sub <- paste(gats$sub, ";", exclist$var2, exclist$math2,
-                          format(exclist$val2, big.mark=",", scientific=FALSE))
-      }
-      if (exclist$var3 != "NONE") {
-        gats$sub <- paste(gats$sub, ";", exclist$var3, exclist$math3,
-                          format(exclist$val3, big.mark=",", scientific=FALSE))
-      }
-
-      myplots$rate <- plotGATmaps(area = myshps$aggregated,
-                                  var = ratevars$ratename,
-                                  clr = ratevars$colorscheme,
-                                  title.sub = gats$sub,
-                                  title.main = gats$title, ratemap = TRUE,
-                                  mapstats = TRUE,
-                                  closemap = closemap)
+       myplots$rate <- plotGATrate(ratevars = ratevars, myshps = myshps, closemap = closemap, exclist = exclist)
+         
+         
     } # end mapping new rate
 
     # 12. save maps to pdf ----
     step <- step + 1
-    gatenv$pb$label = paste0("Writing the plots to ", filevars$fileout, "plots.pdf.")
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
     # save the plots to a pdf file
     grDevices::pdf(paste0(filevars$userout, "plots.pdf"), onefile=TRUE,
@@ -1317,68 +1014,37 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
 
     # 13. save crosswalk shapefile ----
     step <- step + 1
-    gatenv$pb <- list(title = "NYSDOH GAT: saving files",
-               label = paste("Writing the original shapfile to",
-                             paste0(filevars$fileout, "in")))
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
     myshps$original$GATid <- aggvars$IDlist # add crosswalk IDs
     # warnings don't make sense; they say data not written successfully,
     # but shapefile is fine and data match original file
     sf::st_write(myshps$original, filevars$pathout, driver = "ESRI Shapefile",
-                 paste0(filevars$fileout, "in"), overwrite_layer = TRUE)
+                 paste0(filevars$fileout, "in"), delete_layer = TRUE)
 
     # 14. save new shapefile ----
     step <- step + 1
-    gatenv$pb$label = paste("Writing the merged shapfile to", filevars$fileout)
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
     names(myshps$aggregated) <- substr(names(myshps$aggregated), 1, 10)
     sf::st_write(myshps$aggregated, filevars$pathout, filevars$fileout,
-                 driver = "ESRI Shapefile", overwrite_layer = TRUE)
+                 driver = "ESRI Shapefile", delete_layer = TRUE)
 
     # 15. save kml file ----
     if (gatvars$savekml==TRUE) { # now includes descriptions
       step <- step + 1
-      gatenv$pb$label = "Writing the KML file."
-      tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                       value = step, label = gatenv$pb$label),
-               error = function(e) gatenv$tpb <- NULL)
-      if (is.null(gatenv$tpb)) {
-        gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                           label = gatenv$pb$label, min = 0, max = 26, width = 400)
-        tcltk::setTkProgressBar(gatenv$tpb, value = step)
-      }
+      drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+                aggvars = aggvars, ratevars = ratevars)
 
       writeGATkml(myshp = myshps$aggregated, filename = filevars$fileout,
                   filepath = filevars$pathout, myidvar = gatvars$myidvar)
     }
     # 16. save log file ----
     step <- step + 1
-    gatenv$pb$label = paste0("Writing the log to ",
-                      paste0(filevars$fileout, ".log"), ".")
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
     mysettings$exists = file.exists(paste0(filevars$userout, ".shp"))
     writeGATlog(gatvars = gatvars, aggvars = aggvars, filevars = filevars,
@@ -1386,15 +1052,8 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
                 mergevars = mergevars, ratevars = ratevars, exclist = exclist)
 
     step <- step + 1
-    gatenv$pb$label = "GAT is finished."
-    tryCatch(tcltk::setTkProgressBar(gatenv$tpb, title = gatenv$pb$title,
-                                     value = step, label = gatenv$pb$label),
-             error = function(e) gatenv$tpb <- NULL)
-    if (is.null(gatenv$tpb)) {
-      gatenv$tpb <- tcltk::tkProgressBar(title = gatenv$pb$title, initial = 0,
-                                         label = gatenv$pb$label, min = 0, max = 26, width = 400)
-      tcltk::setTkProgressBar(gatenv$tpb, value = step)
-    }
+    drawGATpb(gatenv = gatenv, step = step, mysettings = mysettings, filevars = filevars,
+              aggvars = aggvars, ratevars = ratevars)
 
 
     if (mysettings$exists) {
@@ -1431,14 +1090,16 @@ runGATprogram <- function(limitdenom = FALSE, pwrepeat = FALSE, settings = NULL,
       tcltk::tkmessageBox(title = "Shapefile save failed", type = "ok",
                           icon = "error", message = msg)
     }
-
+    
+    
   } else {
     # "else" occurs only if GAT is cancelled in the input phase
     # there are now redundant warnings; function-level are commented out
     msg <- "You have chosen to cancel GAT."
     tcltk::tkmessageBox(title = "GAT cancelled",
-                        message = msg,
-                        type = "ok", icon = "warning")
+                      message = msg,
+                      type = "ok", icon = "warning")
+    
   }
   # end GAT ####
   close(gatenv$tpb)

@@ -39,7 +39,8 @@ mergevars <- list(mergeopt1 = "closest", similar1 = "AREAWATR",
 ratevars <- list(ratename = "no_rate") # not calculated
 
 exclist <- list(var1 = "TOTAL_POP", math1 = "equals", val1 = 0,
-                var2 = "NONE", var3 = "NONE")
+                var2 = "NONE", math2 = "equals", val2 = 0,
+                var3 = "NONE", math3 = "equals", val3 = 0)
 
   # settings for first aggregation ----
 gatvars <- list(

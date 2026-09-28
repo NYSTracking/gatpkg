@@ -1,10 +1,10 @@
 ---
-title: "GAT Citation Information"
+title: "Citation Information"
 author: "Abigail Stamm"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{GAT Citation Information}
+  %\VignetteIndexEntry{Citation Information}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -35,7 +35,8 @@ Abigail Stamm, NYSDOH BEOE
 Gwen (Babcock) LaSelva, NYSDOH BEOE  
 Thomas Talbot  
 
-**Alpha testers and contributors**  
+**Alpha testers and contributors** 
+Isaac Finkell, formerly NYSDOH
 Neil Muscatiello, NYSDOH BEOE  
 Arjita Rai  
 Catherine Wargo, NYSDOH BEOE  

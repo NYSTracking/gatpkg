@@ -48,8 +48,12 @@
 #'
 #' @export
 
-# for arrow and scale bar, see:
-# https://cran.r-project.org/web/packages/prettymapr/prettymapr.pdf
+# for arrow see:
+# https://rspatial.github.io/terra/reference/north.html
+#
+#for scale bar see:
+#https://rspatial.github.io/terra/reference/sbar.html
+#
 # NAD83 = epsg:4269; WGS84, GRS80 = epsg:42310; NAD83, GRS80 = epsg:7019,
 # but function doesn't recognize them
 plotGATcompare <- function(areaold, areanew, mergevars, gatvars,
@@ -100,13 +104,11 @@ plotGATcompare <- function(areaold, areanew, mergevars, gatvars,
                     numformat(gatvars$maxvalue2), " ", gatvars$aggregator2)
   }
   graphics::title(mytitle, sub = mysub, cex.main = 2)
-  raster::scalebar(20, type='bar', divs=5)
+  terra::sbar(d = 20, type='bar', divs=5)
 
   # draw arrow and scale bar ####
-  if (requireNamespace("prettymapr", quietly = TRUE)) {
-    prettymapr::addnortharrow(pos = "bottomleft", padin = c(0.2, 0.05),
-                              scale = .5, lwd = 1, border = "black",
-                              cols = c("white", "black"), text.col = "black")
+  if (requireNamespace("terra", quietly = TRUE)) {
+    terra::north(xy = "bottomleft", type = 1, lwd = 1, col = "black")
   }
   # save map ####
   map <- grDevices::recordPlot()
