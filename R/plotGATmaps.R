@@ -207,7 +207,7 @@ plotGATmaps <- function(area, var, clr = "Blues", title.main = "", class = NULL,
 
   graphics::legend("topleft", legend = labels, fill = fill, border = border,
                    cex = 1, bty = "n", inset = 0, y.intersp = 1.25)
-  raster::scalebar(20, type='bar', divs=5)
+  terra::sbar(d = 20, type='bar', divs=5)
 
   # calculate summary statistics if mapstats = TRUE ####
   if (mapstats) {
@@ -259,11 +259,9 @@ plotGATmaps <- function(area, var, clr = "Blues", title.main = "", class = NULL,
 
   # add scale and arrow ####
   # only include this last part if prettymapr is installed
-  if (requireNamespace("prettymapr", quietly = TRUE)) {
+  if (requireNamespace("terra", quietly = TRUE)) {
     suppressMessages(
-      prettymapr::addnortharrow(pos = "bottomleft", padin = c(0.2, 0.05),
-                                scale = .5, lwd = 1, border = "black",
-                                cols = c("white", "black"), text.col = "black")
+      terra::north(xy = "bottomleft", type = 1, lwd = 1, col = "black")
     )
   }
 

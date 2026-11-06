@@ -5,9 +5,6 @@
 stable](https://lifecycle.r-lib.org/articles/figures/lifecycle-stable.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 <!-- badges: end -->
 
-
-
-
 # Geographic Aggregation Tool (GAT)
 
 The geographic aggregation tool (GAT) was developed by the New York State Department of Health (NYSDOH) Environmental Public Health Tracking (EPHT) Program with funding from the CDC administered through Health Research Incorporated. GAT is maintained by Abigail Stamm at the NYSDOH. 
@@ -25,11 +22,11 @@ Run the code below in R to install GAT directly from GitHub.
 install.packages("devtools")
 # install the development version of GAT from Github with all 
 # required packages from CRAN
-devtools::install_github("nystracking/gatpkg", dependencies = TRUE, 
+devtools::install_github("NYSTracking/gatpkg", dependencies = TRUE, 
                          build_vignette = TRUE)
 ```
 
-If running the code above doesn't work, you can also install GAT manually. Download the [most recently compiled version of GAT](compiles/gatpkg_2.0.0.tar.gz?raw=TRUE) or check the [compiles](compiles) folder for earlier versions of GAT, then download and follow [instructions on how to install GAT](compiles/GAT2.x_install_instructions.pdf), including a list of required R packages on CRAN.
+If running the code above doesn't work, you can also install GAT manually. Download the [most recently compiled version of GAT](compiles/gatpkg_2.2.0.tar.gz?raw=TRUE) or check the [compiles](compiles) folder for earlier versions of GAT, then download and follow [instructions on how to install GAT](compiles/GAT2.x_install_instructions.pdf), including a list of required R packages on CRAN.
 
 ### Why create GAT
 
@@ -56,7 +53,7 @@ To learn more about GAT, view our [presentations](presentations/).
 
 GAT is provided as is. We welcome feedback on what worked well, suggestions for improvement, and bugs you encounter. Report all issues via the "Issues" tab or by emailing [NYSDOH EPHT](mailto:epht@health.ny.gov?subject=[GAT in R]).
 
-GAT was written in R-2.9.2 in Windows XP and was revised and converted to a package in R-3.4.3 in Windows 10 using RStudio-1.4.1103 and devtools-2.3.2. The latest version of GAT was compiled in R-4.2.2 and runs in R-4.0 through R-4.2.
+GAT was written in R-2.9.2 in Windows XP and was revised and converted to a package in R-3.4.3 in Windows 10 using RStudio-1.4.1103 and devtools-2.3.2. The latest version of GAT was compiled in R-4.2 and runs in R-4.0 through R-4.2.
 
 If you are interested in GAT's history, including the original SAS and R scripts, visit the [archive](archive/). 
 

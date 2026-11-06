@@ -1,8 +1,8 @@
 Package: gatpkg
 Type: Package
 Title: Geographic Aggregation Tool (GAT)
-Version: 2.0.0
-Date: 2023-03-15
+Version: 2.2.0
+Date: 2026-02-27
 Authors@R: c(
     person("Abigail", "Stamm", email = "abigail.stamm@health.ny.gov", 
       role = c("cre", "aut"), comment = "author of R package"),
@@ -26,29 +26,22 @@ Description: The purpose of this package is to run the New York State
     documentation for more details on how GAT works.
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
 Depends: R (>= 4.0.0)
-Imports: 
-    classInt (>= 0.3.1),
-    graphics, 
-    grDevices,
-    methods,
-    raster,
-    RColorBrewer (>= 1.1.2),
-    sf, 
-    spdep (>= 1.0-2),
-    stats, 
-    tcltk,
-    tibble,
-Suggests: 
-    knitr,
-    lwgeom,
-    prettymapr (>= 0.2.2),
-    rmarkdown,
-    tools,
-RoxygenNote: 7.2.3
+Imports: classInt (>= 0.3.1), graphics, grDevices, methods, terra,
+        RColorBrewer (>= 1.1.2), sf, stats, tcltk, tibble,
+Suggests: knitr, rmarkdown, tools,
+RoxygenNote: 7.3.3
 VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 URL: https://github.com/nystracking/gatpkg
 BugReports: https://github.com/nystracking/gatpkg/issues
-
+NeedsCompilation: no
+Packaged: 2026-02-27 20:28:43 UTC; izf002
+Author: Abigail Stamm [cre, aut] (author of R package),
+  Gwen Babcock [aut, trl] (author of SAS and R scripts, contributed to
+    technical notes),
+  Thomas Talbot [ctb] (GAT concept creator, contributed to technical
+    notes),
+  New York State Department of Health / Health Research, Inc. [cph],
+  Centers for Disease Control and Prevention [fnd] (Grant
+    NUE1EH001341-03-01)

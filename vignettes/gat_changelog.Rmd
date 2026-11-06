@@ -16,6 +16,36 @@ knitr::opts_chunk$set(
 )
 ```
 
+## GAT v2.2.0 (February 19, 2026)
+
+* Fixed error in sf call in `defineGATmerge()` preventing installation of gatpkg in R.
+* Moved progress bar titles and labels into a dataframe named PBnames in sysdata.Rdata.
+* Added the following functions (and corresponding code in runGATprogram) to decrease repetitive code:
+    * `drawGATpb()`: generalized version of previous progress bar calls to set pb and tpb based on 
+    `step` variable.
+    *`cleanGATexclist()`: Function to set `temp$minmaxlbl` variable and remove non numeric values from
+    exclist math values.
+    *`plotGATaggs()`: Function to plot GAT aggregators and store them to `myplots` variable, dependent
+    on whether aggregator function is `aggregator1` or `aggregator2` variable.
+    *`creatGATmapvar()`: Function that creates mapvar variables used in `plotGATaggs()`.
+   *`plotGATrates()`: Function to map GAT rates and set text on map dependent on exclist variables.
+* Fixed error in `calculateGATflag()` causing GAT exclusion criteria to be ignored.
+* Merged `calculateGATflag()` and `calculateGATexclusions()` into a smaller, simpler function.
+* Minor syntax corrections.
+
+
+## GAT v2.1.0 (September 25, 2023)
+
+* Rewrote `defineGATmerge()` to remove spdep entirely and rewrote merge fail messages for the log.
+* Rewrote spdep sections to use sfdep or alternate code and removed dependency on spdep.
+* Added check to filter out empty geographies.
+* Removed `aggregateGATnb()`.
+
+## GAT v2.0.1 (May 11, 2023)
+
+* Added check for operating system in `locateGATshapefile()` and updated `runGATprogram()` accordingly.
+* Added new advanced function options to make some functions compatible with the NYS Geomasking Tool (geomask package, still in development).
+
 ## GAT v2.0.0 (March 15, 2023)
 
 * Added advanced options to the settings file and log.
